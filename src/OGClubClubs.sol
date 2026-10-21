@@ -132,7 +132,8 @@ contract OGClubClubs is ERC721Enumerable, ERC2981, IERC4906, ERC1155Holder, Owna
         // A predicted self-address cannot be a revenue destination: no payments may be held here.
         if (
             vault_ == address(this) || vault_ == BURN_ADDRESS || vault_ == address(token_)
-                || vault_ == address(furniture_)
+                || vault_ == address(furniture_) || vault_ == address(pepes_)
+                || (address(delegates_) != address(0) && vault_ == address(delegates_))
         ) {
             revert UnexpectedTokenDebit();
         }
@@ -345,8 +346,24 @@ contract OGClubClubs is ERC721Enumerable, ERC2981, IERC4906, ERC1155Holder, Owna
     }
 
     function setFootprint(uint256 id, uint8 w, uint8 h, bool wall) external onlyOwner {
-        if (_footprints[id].locked) revert FootprintLocked();
+        _setFootprint(id, w, h, wall);
+    }
+
+    /// @notice Set a catalogue atomically. Every definition is final, including before its first placement.
+    function setFootprints(uint256[] calldata ids, uint8[] calldata w, uint8[] calldata h, bool[] calldata wall)
+        external
+        onlyOwner
+    {
+        if (ids.length != w.length || ids.length != h.length || ids.length != wall.length) revert BadFootprint();
+        for (uint256 i; i < ids.length; ++i) {
+            _setFootprint(ids[i], w[i], h[i], wall[i]);
+        }
+    }
+
+    function _setFootprint(uint256 id, uint8 w, uint8 h, bool wall) private {
+        if (_footprints[id].set) revert FootprintLocked();
         if (w == 0 || h == 0 || w > 4 || h > 4 || (wall && h != 1)) revert BadFootprint();
+        // Preserve the view's legacy `locked` flag: it records first successful placement.
         _footprints[id] = Footprint(w, h, true, false, wall);
         emit FootprintSet(id, w, h, wall);
     }

@@ -47,11 +47,27 @@ abstract contract ClubDeployment is Script {
     }
 
     function _configure(OGClubClubs clubs, uint256[][] memory rows, bool open) internal {
+        (uint256[] memory ids, uint8[] memory w, uint8[] memory h, bool[] memory wall) = _footprintArrays(rows);
+        clubs.setFootprints(ids, w, h, wall);
+        if (open) clubs.setSaleOpen(true);
+    }
+
+    function _footprintArrays(uint256[][] memory rows)
+        internal
+        pure
+        returns (uint256[] memory ids, uint8[] memory w, uint8[] memory h, bool[] memory wall)
+    {
+        ids = new uint256[](rows.length);
+        w = new uint8[](rows.length);
+        h = new uint8[](rows.length);
+        wall = new bool[](rows.length);
         for (uint256 i; i < rows.length; ++i) {
             // Bounds are validated before deployment, so these casts cannot truncate.
-            clubs.setFootprint(rows[i][0], uint8(rows[i][1]), uint8(rows[i][2]), rows[i][3] == 1);
+            ids[i] = rows[i][0];
+            w[i] = uint8(rows[i][1]);
+            h[i] = uint8(rows[i][2]);
+            wall[i] = rows[i][3] == 1;
         }
-        if (open) clubs.setSaleOpen(true);
     }
 
     function _printClubs(OGClubClubs clubs, address owner, address royaltyReceiver) internal view {
@@ -144,6 +160,7 @@ contract DeployClubsSepolia is ClubDeployment {
 }
 
 /// @notice Deploy clubs from a separate EOA key; print configuration calls for OWNER (which may be a Safe).
+/// @dev Legacy standalone helper. The approved five-application launch uses launch.json and DeployMainnet.s.sol.
 contract DeployClubsMainnet is ClubDeployment {
     struct Config {
         IERC20 token;
@@ -198,12 +215,11 @@ contract DeployClubsMainnet is ClubDeployment {
         );
         vm.stopBroadcast();
         _printClubs(clubs, config.owner, config.royaltyReceiver);
-        console2.log("OWNER must send these setFootprint calls to OGClubClubs before opening the sale:");
-        for (uint256 i; i < rows.length; ++i) {
-            console2.logBytes(
-                abi.encodeCall(clubs.setFootprint, (rows[i][0], uint8(rows[i][1]), uint8(rows[i][2]), rows[i][3] == 1))
-            );
-        }
+        console2.log("OWNER must send this setFootprints batch to OGClubClubs before opening the sale:");
+        (uint256[] memory ids, uint8[] memory w, uint8[] memory h, bool[] memory wall) = _footprintArrays(rows);
+        console2.logBytes(abi.encodeCall(clubs.setFootprints, (ids, w, h, wall)));
+        console2.log("OWNER must set the club metadata URI:");
+        console2.logBytes(abi.encodeCall(clubs.setBaseURI, ("https://world.ogclub.online/club/")));
         console2.log("After reviewing footprints and metadata, OWNER may open the sale with:");
         console2.logBytes(abi.encodeCall(clubs.setSaleOpen, (true)));
     }

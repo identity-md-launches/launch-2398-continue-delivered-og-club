@@ -174,7 +174,9 @@ contract ClubsPepeTest is ClubsTestBase {
     }
 
     function test_NewConstructorRejections() public {
-        address[3] memory badVaults = [clubs.BURN_ADDRESS(), address(token), address(furniture)];
+        delegates = new MockDelegateRegistry();
+        address[5] memory badVaults =
+            [clubs.BURN_ADDRESS(), address(token), address(furniture), address(pepes), address(delegates)];
         for (uint256 i; i < badVaults.length; ++i) {
             vm.expectRevert(OGClubClubs.UnexpectedTokenDebit.selector);
             new OGClubClubs(
@@ -586,8 +588,10 @@ contract ClubsWallsTest is ClubsTestBase {
         assertEq(w, 2);
         assertEq(h, 1);
         assertTrue(set && locked && wall);
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
         clubs.setFootprint(12, 3, 3, false);
-        clubs.setFootprint(12, 3, 1, true); // Unplaced flag may change.
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
+        clubs.setFootprint(12, 3, 1, true); // Unplaced definitions are also final.
         vm.expectRevert(OGClubClubs.BadFootprint.selector);
         clubs.setFootprint(13, 1, 2, true);
         vm.expectRevert(OGClubClubs.BadFootprint.selector);

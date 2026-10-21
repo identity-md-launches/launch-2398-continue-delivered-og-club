@@ -15,7 +15,7 @@ contract Deploy is Script {
     error InvalidConfiguration();
     error MockOnlyOnTestnets();
 
-    /// @dev TOKEN must be an existing token. Mainnet requires a fresh deployer, OWNER Safe, RAFFLE_NOTICE=604800.
+    /// @dev Legacy four-application helper. The five-application mainnet handoff is in DeployMainnet.s.sol.
     function run()
         external
         returns (OGClubFurniture furniture, OGClubFarmVault vault, OGClubStaking staking, OGClubRaffle raffle)
@@ -40,7 +40,7 @@ contract Deploy is Script {
         raffle = new OGClubRaffle(staking, furniture, owner, notice);
     }
 
-    /// @notice Local/Sepolia helper matching launch.json. Returns contracts without impersonating OWNER for grants.
+    /// @notice Historical local/Sepolia helper; mainnet uses DeployMainnet and launch.json. Returns contracts without impersonating OWNER for grants.
     function deploySepolia(address owner)
         external
         returns (

@@ -59,7 +59,10 @@ contract OGClubStaking is Ownable2Step, ReentrancyGuard {
     event SpenderProposalCancelled(address indexed spender);
 
     constructor(IERC20 token_, address vault_, address initialOwner, uint256 pointsPerTokenDay_) Ownable(initialOwner) {
-        if (address(token_) == address(0) || vault_ == address(0) || vault_ == address(this)) revert InvalidAddress();
+        if (
+            address(token_) == address(0) || vault_ == address(0) || vault_ == address(this)
+                || vault_ == address(token_)
+        ) revert InvalidAddress();
         if (pointsPerTokenDay_ == 0 || pointsPerTokenDay_ > MAX_POINTS_PER_TOKEN_DAY) revert InvalidRate();
         token = token_;
         vault = vault_;

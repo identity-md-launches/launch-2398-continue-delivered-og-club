@@ -184,16 +184,17 @@ contract ClubsPlacementTest is ClubsTestBase {
         clubs.setFootprint(5, 4, 4, false);
         vm.expectRevert(OGClubClubs.OutOfRoom.selector);
         place(alice, 1, 5, 9, 9, 0);
-        clubs.setFootprint(5, 2, 1, false); // Failed placement did not lock the dimensions.
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
+        clubs.setFootprint(5, 2, 1, false); // Even after a failed placement, the original definition is final.
         place(alice, 1, 5, 2, 0, 0);
         (w, h, set, locked,) = clubs.footprintOf(5);
-        assertEq(w, 2);
-        assertEq(h, 1);
+        assertEq(w, 4);
+        assertEq(h, 4);
         assertTrue(set);
         assertTrue(locked);
         vm.expectRevert(OGClubClubs.FootprintLocked.selector);
-        clubs.setFootprint(5, 2, 1, false); // Even an identical reset is forbidden.
-        clubs.setFootprint(1, 3, 2, false); // Other IDs remain editable.
+        clubs.setFootprint(5, 4, 4, false); // Even an identical reset is forbidden.
+        clubs.setFootprint(6, 3, 2, false); // New IDs can still be defined.
         vm.prank(bob);
         clubs.mintClub(2);
         stock(bob, 5, 1);

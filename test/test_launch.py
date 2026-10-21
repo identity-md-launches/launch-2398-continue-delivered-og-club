@@ -1,4 +1,4 @@
-"""Validate the constructor-only Sepolia manifest against its schema and compiler ABIs."""
+"""Validate the constructor-only mainnet manifest against its schema and compiler ABIs."""
 import copy
 import json
 from pathlib import Path
@@ -64,21 +64,19 @@ class LaunchManifestTest(unittest.TestCase):
     def test_exact_deployment_order_owners_and_dependencies(self):
         validate_manifest(self.manifest, self.constructors)
         expected = [
-            ("MockOG", ["$owner"]),
             ("OGClubFurniture", ["$owner", "$owner"]),
-            ("OGClubFarmVault", ["$contract:MockOG", "$owner"]),
-            ("OGClubStaking", ["$contract:MockOG", "$contract:OGClubFarmVault", "$owner", "1000000000000000000"]),
-            ("OGClubRaffle", ["$contract:OGClubStaking", "$contract:OGClubFurniture", "$owner", "0"]),
-            ("MockSwarmPepe", []),
+            ("OGClubFarmVault", ["0xce7eb1ad9e2e1c784ea05f7ea4a0fe625923d10a", "$owner"]),
+            ("OGClubStaking", ["0xce7eb1ad9e2e1c784ea05f7ea4a0fe625923d10a", "$contract:OGClubFarmVault", "$owner", "1000000000000000000"]),
+            ("OGClubRaffle", ["$contract:OGClubStaking", "$contract:OGClubFurniture", "$owner", "604800"]),
             ("OGClubClubs", [
-                "$contract:MockOG", "$contract:OGClubFarmVault", "100000000000000000000000",
+                "0xce7eb1ad9e2e1c784ea05f7ea4a0fe625923d10a", "$contract:OGClubFarmVault", "100000000000000000000000",
                 "$contract:OGClubFurniture", "$owner", "$owner",
-                "$contract:MockSwarmPepe", "0x00000000000000447e69651d841bD8D104Bed493",
+                "0x999ce0CE8C5f7661e0c74a568FfE27CEB9177bDB", "0x00000000000000447e69651d841bD8D104Bed493",
                 "200000000000000000000000", "400000000000000000000000", "800000000000000000000000",
             ]),
         ]
         self.assertEqual([(c["contract"], c["constructorArgs"]) for c in self.manifest["contracts"]], expected)
-        for phrase in ["FIRST grant", "604800", "sale closed", "285", "MockOG is Sepolia-only"]:
+        for phrase in ["FIRST grant", "604800", "sale closed", "285", "chain ID 1", "setFootprints", "ONCE SET", "transferOwnership(Safe)", "acceptOwnership()"]:
             self.assertIn(phrase, self.manifest["notes"])
         self.assertEqual(len(expected[-1][1]), 11)
         self.assertEqual([f["type"] for f in self.constructors["OGClubClubs"]["inputs"]][-3:], ["uint256"] * 3)
@@ -96,6 +94,38 @@ class LaunchManifestTest(unittest.TestCase):
         self.assertEqual(len(bytes.fromhex(encoded[2:])), 11 * 32)
         self.assertEqual([int(encoded[2 + 64*i:2 + 64*(i+1)], 16) for i in range(8, 11)],
                          [int(price) for price in expected[-1][1][8:]])
+
+    def test_approved_catalogue_and_exact_readme_calldata(self):
+        expected = [
+            [1,1,1,0],[2,1,1,0],[3,2,1,0],[4,1,1,0],[5,2,2,0],[6,1,1,0],
+            [7,1,1,0],[8,1,1,0],[9,1,1,0],[10,1,1,0],[11,1,1,0],[12,2,1,0],
+            [13,1,1,0],[14,1,1,0],[15,1,1,0],[16,1,1,0],[17,1,1,0],[18,2,1,0],
+            [19,1,1,0],[20,2,1,0],[21,1,1,0],[22,1,1,0],[23,2,1,1],[24,1,1,0],
+        ]
+        self.assertEqual(json.loads((ROOT / "script/club-footprints.json").read_text()), expected)
+        self.assertIn(json.dumps(expected, separators=(",", ":")), self.manifest["notes"])
+        arrays = [[row[i] if i != 3 else bool(row[i]) for row in expected] for i in range(4)]
+        readme = (ROOT / "README.md").read_text()
+        fixed_calls = {
+            "furniture-uri": ["setBaseURI(string)", "https://world.ogclub.online/nft/"],
+            "clubs-uri": ["setBaseURI(string)", "https://world.ogclub.online/club/"],
+            "footprints": ["setFootprints(uint256[],uint8[],uint8[],bool[])",
+                           *[json.dumps(a, separators=(",", ":")) for a in arrays]],
+            "sale-open": ["setSaleOpen(bool)", "true"],
+        }
+        for label, args in fixed_calls.items():
+            with self.subTest(label=label):
+                calldata = subprocess.check_output(["cast", "calldata", *args], cwd=ROOT, text=True).strip()
+                match = re.search(r"<!-- calldata:" + label + r" -->\s*```text\s*(0x[0-9a-f]+)\s*```", readme)
+                self.assertIsNotNone(match, label)
+                self.assertEqual(match.group(1), calldata)
+                if label == "footprints":
+                    self.assertEqual(len(bytes.fromhex(calldata[2:])), 3332)
+        # Grants depend on the launch's confirmed raffle address, never a rehearsal address.
+        for name in ("grantMinter", "grantSpender"):
+            selector = subprocess.check_output(["cast", "sig", name + "(address)"], cwd=ROOT, text=True).strip()
+            self.assertIn(selector + "{RAFFLE_WORD}", readme)
+            self.assertIn('cast calldata "' + name + '(address)" "${RAFFLE:?', readme)
 
     def test_rejects_nested_price_array_from_failed_manifest(self):
         manifest = copy.deepcopy(self.manifest)

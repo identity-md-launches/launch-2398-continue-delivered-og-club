@@ -435,21 +435,22 @@ contract ClubsAdversarialTest is Test {
 
     // ------------------------------------------------------------------ footprints
 
-    function test_FootprintCanBeRevisedUntilFirstPlacementOnly() public {
+    function test_FootprintIsFinalFromDefinitionAndPlacementStillMarksLegacyLock() public {
         vm.prank(admin);
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
         clubs.setFootprint(5, 1, 3, false);
         (uint8 w, uint8 h, bool set, bool locked,) = clubs.footprintOf(5);
-        assertEq(w, 1);
-        assertEq(h, 3);
+        assertEq(w, 3);
+        assertEq(h, 1);
         assertTrue(set);
         assertFalse(locked);
 
-        // A rejected placement does not lock.
-        _expectPlaceRevert(alice, 1, 5, 0, 8, 0, OGClubClubs.OutOfRoom.selector);
+        // A rejected placement leaves the legacy placed flag false, but cannot reopen the definition.
+        _expectPlaceRevert(alice, 1, 5, 8, 0, 0, OGClubClubs.OutOfRoom.selector);
         vm.prank(admin);
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
         clubs.setFootprint(5, 4, 1, false);
 
-        // Placing in any club locks globally.
         vm.prank(bob);
         clubs.mintClub(2);
         _place(bob, 2, 5, 0, 0, 0);
@@ -457,12 +458,12 @@ contract ClubsAdversarialTest is Test {
         vm.expectRevert(OGClubClubs.FootprintLocked.selector);
         clubs.setFootprint(5, 1, 1, false);
         (w, h,, locked,) = clubs.footprintOf(5);
-        assertEq(w, 4);
+        assertEq(w, 3);
         assertEq(h, 1);
         assertTrue(locked);
-        // Other ids unaffected.
+        // New IDs can still be defined.
         vm.prank(admin);
-        clubs.setFootprint(3, 1, 1, false);
+        clubs.setFootprint(6, 1, 1, false);
     }
 
     function test_FootprintBoundsAndOwnerOnly() public {

@@ -79,6 +79,8 @@ contract DeploymentTest is Test {
         new OGClubStaking(IERC20(address(0)), owner, owner, 1e18);
         vm.expectRevert(OGClubStaking.InvalidAddress.selector);
         new OGClubStaking(token, address(0), owner, 1e18);
+        vm.expectRevert(OGClubStaking.InvalidAddress.selector);
+        new OGClubStaking(token, address(token), owner, 1e18);
         vm.expectRevert(OGClubStaking.InvalidRate.selector);
         new OGClubStaking(token, owner, owner, 0);
         vm.expectRevert(OGClubStaking.InvalidRate.selector);

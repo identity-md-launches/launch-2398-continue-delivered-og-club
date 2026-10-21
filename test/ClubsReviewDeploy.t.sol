@@ -23,7 +23,7 @@ contract LyingVault {
 
 contract ClubsReviewDeployTest is Test {
     uint256 internal constant KEY = 0xA11CE; // local test signer only
-    // The repository's script/club-footprints.json, inlined because tests have no filesystem permission.
+    // Historical Sepolia fixture, separate from the mainnet catalogue in script/club-footprints.json.
     string internal constant CATALOGUE =
         "[[1,1,1,0],[2,2,1,0],[3,2,2,0],[4,4,4,0],[5,1,1,1],[6,2,1,1],[7,3,1,1],[8,4,1,1]]";
     address internal owner = makeAddr("review owner");

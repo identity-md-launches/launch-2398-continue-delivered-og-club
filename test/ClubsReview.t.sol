@@ -455,9 +455,12 @@ contract ClubsReviewWallsTest is ClubsReviewBase {
         assertEq(w, 4);
         assertEq(h, 1);
         assertTrue(set && wall && !locked);
-        clubs.setFootprint(900, 3, 1, false); // still revisable, wall flag can flip before lock
-        (,,,, wall) = clubs.footprintOf(900);
-        assertFalse(wall);
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
+        clubs.setFootprint(900, 3, 1, false); // A pending placement cannot change kind or size.
+        (w,,,, wall) = clubs.footprintOf(900);
+        assertEq(w, 4);
+        assertTrue(wall);
+        vm.expectRevert(OGClubClubs.FootprintLocked.selector);
         clubs.setFootprint(900, 3, 1, true);
         stock(alice, 900, 1);
         assertEq(tryPlace(alice, 1, 900, 0, 0, 0), bytes4(0));
@@ -619,6 +622,10 @@ contract ClubsReviewFixesTest is ClubsReviewBase {
         deployWith(address(token), registry, ok, address(pepes));
         vm.expectRevert(OGClubClubs.UnexpectedTokenDebit.selector);
         deployWith(address(furniture), registry, ok, address(pepes));
+        vm.expectRevert(OGClubClubs.UnexpectedTokenDebit.selector);
+        deployWith(address(pepes), registry, ok, address(pepes));
+        vm.expectRevert(OGClubClubs.UnexpectedTokenDebit.selector);
+        deployWith(address(registry), registry, ok, address(pepes));
         vm.expectRevert(OGClubClubs.ZeroAddress.selector);
         deployWith(address(vault), registry, ok, address(0));
         for (uint256 i; i < 3; ++i) {

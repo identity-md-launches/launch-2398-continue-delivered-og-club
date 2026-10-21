@@ -133,7 +133,7 @@ contract AdversarialClubsHandler is Test {
         uint8 h = uint8(hSeed % 6);
         vm.prank(admin);
         try clubs.setFootprint(item, w, h, false) {
-            assertFalse(ghostLocked[item], "locked footprint changed");
+            assertFalse(ghostSet[item], "defined footprint changed");
             assertTrue(w >= 1 && w <= 4 && h >= 1 && h <= 4, "bad footprint accepted");
             ghostW[item] = w;
             ghostH[item] = h;
@@ -141,11 +141,11 @@ contract AdversarialClubsHandler is Test {
         } catch (bytes memory err) {
             bytes4 sel = bytes4(err);
             assertTrue(
-                (ghostLocked[item] && sel == OGClubClubs.FootprintLocked.selector)
-                    || sel == OGClubClubs.BadFootprint.selector,
+                (ghostSet[item] && sel == OGClubClubs.FootprintLocked.selector)
+                    || (!ghostSet[item] && sel == OGClubClubs.BadFootprint.selector),
                 "unexpected setFootprint failure"
             );
-            assertTrue(ghostLocked[item] || w == 0 || h == 0 || w > 4 || h > 4, "valid footprint refused");
+            assertTrue(ghostSet[item] || w == 0 || h == 0 || w > 4 || h > 4, "valid footprint refused");
         }
     }
 
